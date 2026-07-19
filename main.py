@@ -155,5 +155,6 @@ while True:
         time.sleep(60)
 
     except Exception as e:
-        print(e)
-        time.sleep(60)
+    import traceback
+    traceback.print_exc()
+    time.sleep(60)

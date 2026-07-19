@@ -49,17 +49,41 @@ while True:
             if item["id"] in sent:
                 continue
 
-            headline = item["headline"].lower()
+            headline = item["headline"]
+            text = headline.lower()
 
             # تجاهل الأخبار غير المهمة
-            if not any(word in headline for word in KEYWORDS):
+            if not any(word in text for word in KEYWORDS):
                 continue
 
             sent.add(item["id"])
 
+            # تصنيف الخبر
+            category = "📰 عام"
+
+            if any(x in text for x in ["earnings", "revenue", "guidance"]):
+                category = "💰 أرباح"
+
+            elif any(x in text for x in ["fed", "fomc", "interest rate", "powell"]):
+                category = "🏦 الفيدرالي"
+
+            elif any(x in text for x in ["oil", "crude"]):
+                category = "🛢 النفط"
+
+            elif any(x in text for x in ["gold"]):
+                category = "🥇 الذهب"
+
+            elif any(x in text for x in ["cpi", "inflation", "ppi"]):
+                category = "📈 التضخم"
+
+            elif any(x in text for x in ["jobs", "employment", "unemployment"]):
+                category = "👷 الوظائف"
+
             message = f"""🚨 خبر عاجل
 
-{item['headline']}
+{headline}
+
+🏷️ التصنيف: {category}
 
 📰 المصدر: {item['source']}
 

@@ -161,20 +161,6 @@ American Airlines (AAL)
 {headline}
 """
     )
-def analyze_news(headline):
-    cached = get(headline)
-
-    if cached:
-        return cached
-
-    response = client.responses.create(
-        model="gpt-5-nano",
-        input=f"""
-        ...
-        {headline}
-        """
-    )
-
     result = response.output_text
 
     cache_set(headline, result)

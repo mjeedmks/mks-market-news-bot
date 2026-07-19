@@ -108,10 +108,9 @@ while True:
 
             elif any(x in text for x in ["jobs", "employment", "unemployment"]):
                 category = "👷 الوظائف"
-
             analysis = analyze_news(headline)
 
-message = f"""{analysis}
+            message = f"""{analysis}
 
 📰 المصدر: {item['source']}
 
@@ -119,7 +118,7 @@ message = f"""{analysis}
 📊 Chart Master US | الأسواق الأمريكية
 """
 
-send(message)
+            send(message)
 
 
         time.sleep(60)

@@ -137,8 +137,8 @@ while True:
 
             analysis = analyze_news(headline)
 
-           # if analysis.strip() == "SKIP":
-           #     continue
+            if analysis.strip() == "SKIP":
+                continue
 
             message = f"""{analysis}
 

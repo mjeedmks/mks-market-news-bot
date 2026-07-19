@@ -144,7 +144,8 @@ while True:
 📰 المصدر: {item['source']}
 
 ━━━━━━━━━━━━━━
-📊 Chart Master US | الأسواق الأمريكية
+📊 Chart Master US  
+قناة الأسواق الأمريكية | كل ما يخص التداول
 """
 
             send(message)

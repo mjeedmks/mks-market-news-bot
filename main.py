@@ -34,7 +34,11 @@ while True:
 
 {item['headline']}
 
-📰 المصدر: {item['source']}"""
+📰 المصدر: {item['source']}
+
+━━━━━━━━━━━━━━
+📊 Chart Master US | الأسواق الأمريكية
+"""
 
                 send(message)
 

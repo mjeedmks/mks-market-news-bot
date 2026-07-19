@@ -8,13 +8,18 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 sent = set()
 
+
 def send(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": msg,
-        "disable_web_page_preview": False
-    })
+    requests.post(
+        url,
+        data={
+            "chat_id": CHAT_ID,
+            "text": msg,
+            "disable_web_page_preview": True
+        }
+    )
+
 
 while True:
     try:
@@ -25,12 +30,11 @@ while True:
             if item["id"] not in sent:
                 sent.add(item["id"])
 
-                message = f"""📰 {item['headline']}
+                message = f"""🚨 خبر عاجل
 
-🏢 Source: {item['source']}
+{item['headline']}
 
-🔗 {item['url']}
-"""
+📰 المصدر: {item['source']}"""
 
                 send(message)
 

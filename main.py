@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+from cache import get, set
 from openai import OpenAI
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -43,6 +44,11 @@ def send(msg):
     )
     
 def analyze_news(headline):
+    cached = get(headline)
+
+    if cached:
+        return cached
+
     response = client.responses.create(
         model="gpt-5-nano",
         input=f"""
@@ -156,7 +162,11 @@ American Airlines (AAL)
 """
     )
 
-    return response.output_text
+result = response.output_text
+
+set(headline, result)
+
+return result
 
 while True:
     try:

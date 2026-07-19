@@ -135,7 +135,7 @@ while True:
             elif any(x in text for x in ["jobs", "employment", "unemployment"]):
                 category = "👷 الوظائف"
 
-            analysis = headline
+            analysis = analyze_news(headline)
 
            # if analysis.strip() == "SKIP":
            #     continue

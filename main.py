@@ -8,6 +8,24 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 
 sent = set()
 
+# الكلمات التي نهتم بها
+KEYWORDS = [
+    "fed", "federal reserve", "fomc",
+    "inflation", "cpi", "ppi", "gdp",
+    "jobs", "unemployment",
+    "treasury", "bond", "yield",
+    "oil", "crude", "gold", "dollar",
+    "nasdaq", "nyse", "cboe", "occ",
+    "earnings", "revenue", "guidance",
+    "dividend", "split",
+    "merger", "acquisition",
+    "ai", "artificial intelligence",
+    "nvidia", "microsoft", "apple",
+    "amazon", "meta", "tesla",
+    "amd", "broadcom", "google",
+    "alphabet", "netflix"
+]
+
 
 def send(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -27,10 +45,19 @@ while True:
         news = requests.get(url).json()
 
         for item in news[:10]:
-            if item["id"] not in sent:
-                sent.add(item["id"])
 
-                message = f"""🚨 خبر عاجل
+            if item["id"] in sent:
+                continue
+
+            headline = item["headline"].lower()
+
+            # تجاهل الأخبار غير المهمة
+            if not any(word in headline for word in KEYWORDS):
+                continue
+
+            sent.add(item["id"])
+
+            message = f"""🚨 خبر عاجل
 
 {item['headline']}
 
@@ -40,7 +67,7 @@ while True:
 📊 Chart Master US | الأسواق الأمريكية
 """
 
-                send(message)
+            send(message)
 
         time.sleep(60)
 

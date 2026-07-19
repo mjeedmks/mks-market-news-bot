@@ -132,7 +132,7 @@ while True:
             elif any(x in text for x in ["cpi", "inflation", "ppi"]):
                 category = "📈 التضخم"
 
-                        elif any(x in text for x in ["jobs", "employment", "unemployment"]):
+            elif any(x in text for x in ["jobs", "employment", "unemployment"]):
                 category = "👷 الوظائف"
 
             analysis = headline
@@ -153,8 +153,7 @@ while True:
 
 
         time.sleep(60)
-
     except Exception as e:
-    import traceback
-    traceback.print_exc()
-    time.sleep(60)
+        import traceback
+        traceback.print_exc()
+        time.sleep(60)

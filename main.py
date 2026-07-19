@@ -2,6 +2,7 @@ import os
 import time
 import requests
 from cache import get, set as cache_set
+from sent import load, save
 from openai import OpenAI
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -11,7 +12,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-sent = set()
+sent = load()
 
 # الكلمات التي نهتم بها
 KEYWORDS = [
@@ -184,7 +185,7 @@ while True:
                 continue
 
             sent.add(item["id"])
-
+            save(sent)
             # تصنيف الخبر
             category = "📰 عام"
 

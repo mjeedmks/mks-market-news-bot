@@ -132,9 +132,10 @@ while True:
             elif any(x in text for x in ["cpi", "inflation", "ppi"]):
                 category = "📈 التضخم"
 
-            elif any(x in text for x in ["jobs", "employment", "unemployment"]):
+                        elif any(x in text for x in ["jobs", "employment", "unemployment"]):
                 category = "👷 الوظائف"
-                        analysis = analyze_news(headline)
+
+            analysis = analyze_news(headline)
 
             if analysis.strip() == "SKIP":
                 continue

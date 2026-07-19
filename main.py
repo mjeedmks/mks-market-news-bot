@@ -1,7 +1,7 @@
 import os
 import time
 import requests
-from cache import get, set
+from cache import get, set as cache_set
 from openai import OpenAI
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -161,13 +161,25 @@ American Airlines (AAL)
 {headline}
 """
     )
+def analyze_news(headline):
+    cached = get(headline)
 
-result = response.output_text
+    if cached:
+        return cached
 
-set(headline, result)
+    response = client.responses.create(
+        model="gpt-5-nano",
+        input=f"""
+        ...
+        {headline}
+        """
+    )
 
-return result
+    result = response.output_text
 
+    cache_set(headline, result)
+
+    return result
 while True:
     try:
         url = f"https://finnhub.io/api/v1/news?category=general&token={FINNHUB_API_KEY}"

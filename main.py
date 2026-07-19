@@ -41,7 +41,33 @@ def send(msg):
             "disable_web_page_preview": True
         }
     )
+    
+def analyze_news(headline):
+    response = client.responses.create(
+        model="gpt-5-nano",
+        input=f"""
+أنت محلل أخبار مالية.
 
+أعد الخبر بالعربية بهذا الشكل:
+
+🚨 خبر عاجل
+
+ملخص:
+- اكتب ملخصًا عربيًا في سطر أو سطرين.
+
+التصنيف:
+- اختر واحدًا فقط:
+أرباح، فيدرالي، تضخم، وظائف، نفط، ذهب، شركة، اقتصاد، عام.
+
+التأثير:
+- اذكر التأثير بإيجاز على الأسواق أو الشركة إن وجد.
+
+الخبر:
+{headline}
+"""
+    )
+
+    return response.output_text
 
 while True:
     try:
@@ -83,11 +109,9 @@ while True:
             elif any(x in text for x in ["jobs", "employment", "unemployment"]):
                 category = "👷 الوظائف"
 
-            message = f"""🚨 خبر عاجل
+            analysis = analyze_news(headline)
 
-{headline}
-
-🏷️ التصنيف: {category}
+message = f"""{analysis}
 
 📰 المصدر: {item['source']}
 
@@ -95,7 +119,8 @@ while True:
 📊 Chart Master US | الأسواق الأمريكية
 """
 
-            send(message)
+send(message)
+
 
         time.sleep(60)
 

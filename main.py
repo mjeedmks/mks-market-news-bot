@@ -9,7 +9,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
+print("OPENAI =", OPENAI_API_KEY[:12] if OPENAI_API_KEY else "None")
+print("FINNHUB =", FINNHUB_API_KEY[:8] if FINNHUB_API_KEY else "None")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 sent = load()

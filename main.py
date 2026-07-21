@@ -173,7 +173,7 @@ while True:
         response = requests.get(url)
         print(response.text)
         news = response.json()
-
+        for item in news[:10]:
             if item["id"] in sent:
                 continue
 

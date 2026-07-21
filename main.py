@@ -171,7 +171,7 @@ while True:
     try:
         url = f"https://finnhub.io/api/v1/news?category=general&token={FINNHUB_API_KEY}"
         news = requests.get(url).json()
-
+        print(news)
         for item in news[:10]:
 
             if item["id"] in sent:

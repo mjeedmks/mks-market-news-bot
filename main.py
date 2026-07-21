@@ -170,9 +170,9 @@ American Airlines (AAL)
 while True:
     try:
         url = f"https://finnhub.io/api/v1/news?category=general&token={FINNHUB_API_KEY}"
-        news = requests.get(url).json()
-        print(news)
-        for item in news[:10]:
+        response = requests.get(url)
+        print(response.text)
+        news = response.json()
 
             if item["id"] in sent:
                 continue

@@ -157,13 +157,14 @@ while True:
             if not any(word in text for word in KEYWORDS):
                 continue
 
-            analysis = analyze_news(headline)
 
+        analysis = analyze_news(headline)
+            
             if analysis.strip() == "SKIP":
                 continue
 
-            sent.add(item["id"])
-            save(sent)
+             sent.add(item["id"])
+              save(sent)
 
             message = f"""{analysis}
 

@@ -146,46 +146,47 @@ while True:
         response = requests.get(url, timeout=15)
         print(response.text)
         news = response.json()
+
         for item in news:
-    if item["id"] in sent:
-        continue
+            if item["id"] in sent:
+                continue
 
-    headline = item["headline"]
-    text = headline.lower()
+            headline = item["headline"]
+            text = headline.lower()
 
-    # تجاهل الأخبار غير المهمة
-    if not any(word in text for word in KEYWORDS):
-        continue
+            # تجاهل الأخبار غير المهمة
+            if not any(word in text for word in KEYWORDS):
+                continue
 
-    # تجاهل الأخبار الروتينية قبل إرسالها إلى GPT
-    if any(x in text for x in [
-        "market update",
-        "stocks:",
-        "forex",
-        "fx",
-        "currencies",
-        "commodity",
-        "commodities",
-        "rupee",
-        "rand",
-        "peso",
-        "baht",
-        "lira",
-        "ryanair",
-        "airbus"
-    ]):
-        continue
+            # تجاهل الأخبار الروتينية قبل إرسالها إلى GPT
+            if any(x in text for x in [
+                "market update",
+                "stocks:",
+                "forex",
+                "fx",
+                "currencies",
+                "commodity",
+                "commodities",
+                "rupee",
+                "rand",
+                "peso",
+                "baht",
+                "lira",
+                "ryanair",
+                "airbus"
+            ]):
+                continue
 
-    analysis = analyze_news(headline)
+            analysis = analyze_news(headline)
 
-    if analysis.strip() == "SKIP":
-        continue
+            if analysis.strip() == "SKIP":
+                continue
 
-    sent.add(item["id"])
-    save(sent)
+            sent.add(item["id"])
+            save(sent)
 
-    message = f"""{analysis}
-    
+            message = f"""{analysis}
+
 📰 المصدر: {item['source']}
 
 ━━━━━━━━━━━━━━
@@ -195,8 +196,8 @@ https://t.me/ChartMaster_News
 
             send(message)
 
-
         time.sleep(60)
+
     except Exception as e:
         import traceback
         traceback.print_exc()

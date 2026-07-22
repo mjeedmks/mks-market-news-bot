@@ -147,44 +147,45 @@ while True:
         print(response.text)
         news = response.json()
         for item in news:
-            if item["id"] in sent:
-                continue
-headline = item["headline"]
-text = headline.lower()
+    if item["id"] in sent:
+        continue
 
-# تجاهل الأخبار غير المهمة
-if not any(word in text for word in KEYWORDS):
-    continue
+    headline = item["headline"]
+    text = headline.lower()
 
-# تجاهل الأخبار الروتينية قبل إرسالها إلى GPT
-if any(x in text for x in [
-    "market update",
-    "stocks:",
-    "forex",
-    "fx",
-    "currencies",
-    "commodity",
-    "commodities",
-    "rupee",
-    "rand",
-    "peso",
-    "baht",
-    "lira",
-    "ryanair",
-    "airbus"
-]):
-    continue
+    # تجاهل الأخبار غير المهمة
+    if not any(word in text for word in KEYWORDS):
+        continue
 
-analysis = analyze_news(headline)
+    # تجاهل الأخبار الروتينية قبل إرسالها إلى GPT
+    if any(x in text for x in [
+        "market update",
+        "stocks:",
+        "forex",
+        "fx",
+        "currencies",
+        "commodity",
+        "commodities",
+        "rupee",
+        "rand",
+        "peso",
+        "baht",
+        "lira",
+        "ryanair",
+        "airbus"
+    ]):
+        continue
 
-if analysis.strip() == "SKIP":
-    continue
+    analysis = analyze_news(headline)
 
-            sent.add(item["id"])
-            save(sent)
+    if analysis.strip() == "SKIP":
+        continue
 
-            message = f"""{analysis}
+    sent.add(item["id"])
+    save(sent)
 
+    message = f"""{analysis}
+    
 📰 المصدر: {item['source']}
 
 ━━━━━━━━━━━━━━

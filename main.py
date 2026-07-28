@@ -190,7 +190,8 @@ while True:
 
             sent.add(item["id"])
             save(sent)
-                        message = f"""{analysis}
+
+            message = f"""{analysis}
 
 📰 المصدر: {item['source']}
 

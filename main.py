@@ -9,9 +9,11 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 print("OPENAI =", OPENAI_API_KEY[:12] if OPENAI_API_KEY else "None")
 print("FINNHUB =", FINNHUB_API_KEY[:8] if FINNHUB_API_KEY else "None")
 print("KEY START:", repr(OPENAI_API_KEY[:15]))
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 sent = load()
@@ -21,8 +23,13 @@ KEYWORDS = [
     "fed", "federal reserve", "fomc", "powell",
     "inflation", "cpi", "ppi", "pce", "gdp", "nfp",
     "jobs", "unemployment",
-    "treasury", "bond", "yield",
-    "oil", "crude", "gold", "dollar",
+    "opec", "opec+",
+    "tariff",
+    "sanction",
+    "iran",
+    "israel",
+    "hormuz",
+    "red sea",
     "nasdaq", "nyse", "cboe", "occ",
     "earnings", "revenue", "guidance",
     "dividend", "split",
@@ -38,16 +45,15 @@ KEYWORDS = [
 def send(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(
-    url,
-    data={
-        "chat_id": CHAT_ID,
-        "text": msg,
-        "disable_web_page_preview": True
-    },
-    timeout=15
-)
-    
-def analyze_news(headline):
+        url,
+        data={
+            "chat_id": CHAT_ID,
+            "text": msg,
+            "disable_web_page_preview": True
+        },
+        timeout=15
+    )
+    def analyze_news(headline):
     cached = get(headline)
 
     if cached:
@@ -57,28 +63,30 @@ def analyze_news(headline):
         model="gpt-5-nano",
         input=f"""أنت محرر أخبار متخصص في السوق الأمريكي.
 
-هدفك ليس تلخيص جميع الأخبار، بل اختيار الأخبار التي تستحق إرسال إشعار فوري لمتداول في السوق الأمريكي.
+هدفك هو اختيار الأخبار التي تستحق إرسال إشعار فوري لمتداول في السوق الأمريكي، وليس تلخيص جميع الأخبار.
 
-إذا كان الخبر لا يستحق إشعارًا فوريًا فأرجع فقط:
+إذا كان الخبر مكررًا، أو مجرد متابعة لخبر سابق، أو تحديثًا بسيطًا لنفس الحدث، فأرجع فقط:
 
 SKIP
 
-اعتبر الأخبار التالية غير مهمة وأرجع SKIP:
+إذا كان الخبر مجرد حركة في النفط أو الذهب أو الدولار أو السندات بدون حدث جديد يفسر الحركة، فأرجع:
 
-- تحديثات أسعار النفط أو الذهب أو الدولار أو السندات بدون سبب جديد.
-- التعليق على حركة السوق اليومية.
-- تغيرات بسيطة في أسعار السلع أو العملات.
-- أخبار شركات أجنبية لا تؤثر على السوق الأمريكي.
-- أخبار مكررة أو منخفضة الأهمية.
-- أخبار محلية أو سياسية لا تؤثر على الأسواق.
-- أي خبر لا يغير قرارات المستثمر.
+SKIP
 
-أما إذا كان الخبر يتعلق بأحد الأمور التالية فقم بنشره:
+إذا كان الخبر مجرد تعليق أو توقع أو رأي أو تحليل صحفي، فأرجع:
+
+SKIP
+
+إذا كان الخبر لا يؤثر على قرارات المستثمر أو لا يستحق إشعارًا فوريًا، فأرجع:
+
+SKIP
+
+انشر فقط الأخبار المتعلقة بـ:
 
 - الفيدرالي.
 - أسعار الفائدة.
-- FOMC.
 - Powell.
+- FOMC.
 - CPI.
 - PPI.
 - PCE.
@@ -88,40 +96,26 @@ SKIP
 - الرسوم الجمركية.
 - العقوبات.
 - الحروب والتوترات الجيوسياسية المؤثرة.
-- قرارات أوبك أو تغيرات الإنتاج.
+- قرارات أوبك.
 - نتائج الشركات الأمريكية.
 - الاندماجات والاستحواذات.
 - تقسيم الأسهم.
 - إعلانات الشركات الكبرى.
 - الأخبار التي قد تحرك السوق بشكل واضح.
 
-إذا كان الخبر عن النفط أو الذهب أو الدولار أو السندات:
-
-لا تنشره إلا إذا كان سبب الحركة خبرًا جديدًا ومؤثرًا مثل:
-
-- قرار أوبك.
-- عقوبات.
-- حرب.
-- هجوم.
-- اضطراب بالإمدادات.
-- قرار حكومي.
-
-أما مجرد ارتفاع أو انخفاض الأسعار فلا تنشره.
-
 إذا قررت نشر الخبر:
 
 - اكتب بالعربية فقط.
-- اجعل الرسالة قصيرة.
-- اكتب عنوانًا واضحًا.
-- إذا كان التأثير واضحًا أضف سطرًا واحدًا فقط:
+- لا تكتب عبارة "عنوان الخبر بالعربية".
+- لا تكتب كلمة "الملخص".
+- لا تكتب كلمة "التحليل".
+- اجعل الخبر مختصرًا.
+- إذا كان الخبر عن شركة فاكتب عنوان الخبر فقط.
+- إذا كان التأثير واضحًا فأضف سطرًا واحدًا فقط بالشكل التالي:
 
 📊 التأثير: ...
 
-إذا كان الخبر عن شركة:
-
-اكتب عنوان الخبر فقط بدون أي تحليل.
-
-إذا ترددت في أهمية الخبر فأرجع:
+إذا لم تكن متأكدًا بنسبة كبيرة أن الخبر يستحق إشعارًا فوريًا فأرجع فقط:
 
 SKIP
 
@@ -130,30 +124,34 @@ SKIP
 {headline}
 """
     )
-    result = response.output_text
+
+    result = response.output_text.strip()
 
     cache_set(headline, result)
 
     return result
+
 while True:
     try:
         url = f"https://finnhub.io/api/v1/news?category=general&token={FINNHUB_API_KEY}"
         response = requests.get(url, timeout=15)
         print(response.text)
+
         news = response.json()
 
         for item in news:
+
             if item["id"] in sent:
                 continue
 
             headline = item["headline"]
             text = headline.lower()
 
-            # تجاهل الأخبار غير المهمة
+            # فلترة الكلمات المهمة
             if not any(word in text for word in KEYWORDS):
                 continue
 
-            # تجاهل الأخبار الروتينية قبل إرسالها إلى GPT
+            # تجاهل الأخبار الروتينية أو التحليلات
             if any(x in text for x in [
                 "market update",
                 "stocks:",
@@ -168,19 +166,28 @@ while True:
                 "baht",
                 "lira",
                 "ryanair",
-                "airbus"
+                "airbus",
+                "analyst",
+                "expects",
+                "expected",
+                "forecast",
+                "opinion",
+                "commentary",
+                "preview"
             ]):
                 continue
 
             analysis = analyze_news(headline)
 
-            if analysis.strip() == "SKIP":
+            if not analysis:
+                continue
+
+            if analysis.strip().upper() == "SKIP":
                 continue
 
             sent.add(item["id"])
             save(sent)
-
-            message = f"""{analysis}
+                        message = f"""{analysis}
 
 📰 المصدر: {item['source']}
 

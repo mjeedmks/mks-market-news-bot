@@ -53,7 +53,10 @@ def send(msg):
         },
         timeout=15
     )
-    def analyze_news(headline):
+
+
+def analyze_news(headline):
+    cached = get(headline)
     cached = get(headline)
 
     if cached:

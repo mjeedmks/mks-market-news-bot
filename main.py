@@ -165,7 +165,7 @@ while True:
                 continue
 
             if analysis.strip().upper() != "YES":
-            continue
+               continue
 
             sent.add(item["id"])
             save(sent)

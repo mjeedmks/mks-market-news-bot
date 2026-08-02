@@ -357,7 +357,10 @@ while True:
             # الرسالة النهائية
             # ==================================
 
-            message = f"""{analysis}
+            message = f"""-
+
+
+{analysis}
 
 📰 المصدر: {item.get('source', 'غير معروف')}
 

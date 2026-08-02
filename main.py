@@ -1,6 +1,7 @@
 import os
 import time
 import re
+import hashlib
 import requests
 from cache import get, set as cache_set
 from sent import load, save
@@ -24,114 +25,80 @@ sent = load()
 # ==========================================
 
 KEYWORDS = [
-    # الاقتصاد الأمريكي
-    "fed",
-    "federal reserve",
-    "fomc",
-    "powell",
-    "interest rate",
-    "rate cut",
-    "rate hike",
-    "inflation",
-    "cpi",
-    "ppi",
-    "pce",
-    "gdp",
-    "nfp",
-    "payroll",
-    "jobs",
-    "unemployment",
+    "fed", "federal reserve", "fomc", "powell",
+    "interest rate", "rate cut", "rate hike",
+    "inflation", "cpi", "ppi", "pce", "gdp", "nfp",
+    "payroll", "jobs report", "unemployment rate",
 
-    # الدولار والذهب والسندات
-    "dollar",
-    "gold",
-    "treasury",
-    "treasuries",
-    "bond",
-    "bonds",
-    "yield",
-    "yields",
+    "dollar", "gold", "treasury", "treasuries",
+    "bond", "bonds", "yield", "yields",
 
-    # سياسات اقتصادية
-    "tariff",
-    "tariffs",
-    "sanction",
-    "sanctions",
+    "tariff", "tariffs", "sanction", "sanctions",
 
-    # الطاقة والأحداث الكبيرة
-    "opec",
-    "opec+",
-    "hormuz",
-    "oil",
-    "lng",
+    "opec", "opec+", "strait of hormuz", "crude oil",
+    "oil price", "oil prices", "lng",
 
-    # السوق الأمريكي
-    "nasdaq",
-    "nyse",
-    "cboe",
-    "occ",
+    "nasdaq", "nyse", "cboe", "s&p 500", "dow jones",
 
-    # الشركات
-    "earnings",
-    "revenue",
-    "guidance",
-    "dividend",
-    "split",
-    "merger",
-    "acquisition",
-    "takeover",
+    "earnings", "quarterly revenue", "guidance",
+    "dividend", "stock split", "merger", "acquisition",
+    "takeover", "ipo",
 
-    # التقنية والذكاء الاصطناعي
-    "artificial intelligence",
-    "openai",
-    "nvidia",
-    "microsoft",
-    "apple",
-    "amazon",
-    "meta",
-    "tesla",
-    "amd",
-    "broadcom",
-    "google",
-    "alphabet",
-    "netflix"
+    "artificial intelligence", "openai", "nvidia",
+    "microsoft", "apple", "amazon", "meta platforms",
+    "tesla", "amd", "broadcom", "alphabet", "netflix"
 ]
 
 
 # ==========================================
 # أخبار نرفضها قبل إرسالها إلى GPT
+# (تعديل: توسيع شامل ليشمل السياسة والحروب)
 # ==========================================
 
 BLOCKED_PHRASES = [
-    "market update",
-    "morning news",
-    "morning bid",
-    "stocks:",
-    "forex",
-    "currencies",
-    "commodity",
-    "commodities",
+    # روتين إعلامي
+    "market update", "morning news", "morning bid",
+    "stocks:", "forex", "currencies",
+    "commodity", "commodities",
 
     # آراء وتحليلات
-    "analyst says",
-    "analysts say",
-    "analyst expects",
-    "opinion",
-    "commentary",
-    "preview",
+    "analyst says", "analysts say", "analyst expects",
+    "opinion", "commentary", "preview",
+    "jim cramer", "cramer says", "cramer's",
 
-    # آراء إعلامية لا نحتاج إشعارًا لها
-    "jim cramer",
-    "cramer says",
-    "cramer's",
+    # عملات أجنبية غير مهمة
+    "rupee", "rand", "peso", "baht", "lira",
 
-    # عملات أجنبية
-    "rupee",
-    "rand",
-    "peso",
-    "baht",
-    "lira"
+    # === إضافة: سياسة وحروب ومصطلحات عسكرية ===
+    "election", "elections", "president of", "prime minister",
+    "parliament", "congress hearing", "senate vote",
+    "military", "missile", "missiles", "airstrike",
+    "air strike", "troops", "soldiers", "ceasefire",
+    "gaza", "hamas", "houthi", "houthis", "yemen",
+    "syria", "hezbollah", "west bank", "protest",
+    "protests", "riot", "coup", "assassination",
+    "prime minister", "royal family", "king of",
+    "diplomat", "embassy", "united nations",
+    "human rights", "refugee", "refugees",
+    "immigration policy", "border wall",
+    "climate summit", "extreme weather", "wildfire",
+    "earthquake", "hurricane", "flood", "flooding"
 ]
+
+
+# ==========================================
+# مطابقة الكلمات المفتاحية بدقة (Whole Word)
+# تعديل: استخدام regex بدل substring matching
+# ==========================================
+
+def build_pattern(words):
+    escaped = [re.escape(w) for w in words]
+    pattern = r"(?:{})".format("|".join(escaped))
+    return re.compile(pattern, flags=re.IGNORECASE)
+
+
+KEYWORDS_PATTERN = build_pattern(KEYWORDS)
+BLOCKED_PATTERN = build_pattern(BLOCKED_PHRASES)
 
 
 # ==========================================
@@ -146,14 +113,9 @@ MAX_RECENT_TOPICS = 300
 
 def normalize_headline(text):
     text = text.lower()
-
-    # إزالة الروابط
     text = re.sub(r"https?://\S+", " ", text)
-
-    # إزالة علامات الترقيم
     text = re.sub(r"[^a-z0-9\s]", " ", text)
 
-    # كلمات شائعة لا تساعد في تحديد موضوع الخبر
     stop_words = {
         "the", "a", "an", "and", "or", "of", "to", "in",
         "on", "for", "with", "as", "at", "by", "from",
@@ -171,10 +133,8 @@ def normalize_headline(text):
 
 def is_duplicate_topic(headline):
     global recent_topics
-
     now = time.time()
 
-    # حذف المواضيع القديمة
     recent_topics = [
         item for item in recent_topics
         if now - item["time"] < TOPIC_MEMORY_SECONDS
@@ -187,18 +147,12 @@ def is_duplicate_topic(headline):
 
     for item in recent_topics:
         old_words = item["words"]
-
         if not old_words:
             continue
 
         common = current_words & old_words
+        similarity = len(common) / min(len(current_words), len(old_words))
 
-        similarity = len(common) / min(
-            len(current_words),
-            len(old_words)
-        )
-
-        # إذا كان التشابه مرتفعًا نعتبره نفس الحدث
         if similarity >= 0.65:
             return True
 
@@ -207,7 +161,6 @@ def is_duplicate_topic(headline):
 
 def remember_topic(headline):
     global recent_topics
-
     recent_topics.append({
         "time": time.time(),
         "words": normalize_headline(headline)
@@ -215,6 +168,7 @@ def remember_topic(headline):
 
     if len(recent_topics) > MAX_RECENT_TOPICS:
         recent_topics = recent_topics[-MAX_RECENT_TOPICS:]
+
 
 # ==========================================
 # إرسال الرسالة إلى تيليجرام
@@ -232,7 +186,6 @@ def send(msg):
         },
         timeout=15
     )
-
     response.raise_for_status()
 
 
@@ -242,14 +195,13 @@ def send(msg):
 
 def analyze_news(headline):
     cached = get(headline)
-
     if cached:
         return cached
 
-    response = client.responses.create(
-        model="gpt-5-nano",
-
-        input=f"""أنت محرر أخبار لقناة متخصصة في السوق الأمريكي.
+    try:
+        response = client.responses.create(
+            model="gpt-5-nano",
+            input=f"""أنت محرر أخبار لقناة متخصصة في السوق الأمريكي.
 
 أمامك عنوان خبر واحد.
 
@@ -267,7 +219,7 @@ def analyze_news(headline):
 
 اكتب SKIP للأخبار التالية:
 
-- الأخبار السياسية العامة التي لا تؤثر على الأسواق.
+- أي خبر سياسي أو عسكري أو حربي، بأي شكل، إلا إذا كان له تأثير اقتصادي مباشر وواضح على السوق الأمريكي (مثل إغلاق مضيق هرمز أو عقوبات نفطية كبيرة).
 - التصريحات السياسية العادية.
 - التهديدات السياسية المتكررة.
 - أخبار الحروب اليومية الصغيرة.
@@ -283,7 +235,7 @@ def analyze_news(headline):
 - توصيات الشراء والبيع ورفع وخفض السعر المستهدف.
 - المقالات التحليلية العامة.
 - الأخبار المكررة التي لا تضيف معلومة جوهرية جديدة.
-- أي خبر تأثيره على السوق الأمريكي ضعيف جدًا.
+- أي خبر تأثيره على السوق الأمريكي ضعيف جدًا أو غير مباشر.
 
 لا تجعل مجرد ذكر شركة كبيرة سببًا كافيًا للنشر.
 
@@ -302,36 +254,15 @@ SKIP.
 - FOMC.
 - تصريحات Powell المهمة.
 - أسعار الفائدة الأمريكية.
-- CPI.
-- PPI.
-- PCE.
-- GDP.
-- NFP.
+- CPI. PPI. PCE. GDP. NFP.
 - البطالة.
 - بيانات الوظائف الأمريكية المهمة.
 - التضخم الأمريكي.
 - الرسوم الجمركية الأمريكية المهمة.
 - العقوبات الاقتصادية الأمريكية المهمة.
 
-أخبار الدولار والذهب والسندات مهمة إذا كانت الحركة ملحوظة
-ومرتبطة بسبب اقتصادي مهم، مثل:
-
-- تغير توقعات الفائدة.
-- قرار أو تصريح من الفيدرالي.
-- بيانات تضخم أو وظائف مهمة.
-- تغير واضح في توقعات السياسة النقدية.
-- حدث اقتصادي أو جيوسياسي كبير.
-
-مثال:
-
-الدولار يسجل أسوأ أسبوع منذ عدة أشهر بسبب تغير توقعات الفيدرالي:
-انشره.
-
-الذهب يتحرك بشكل واضح بسبب توقعات خفض الفائدة:
-انشره.
-
-أما حركة صغيرة وروتينية بدون سبب مهم:
-SKIP.
+أخبار الدولار والذهب والسندات مهمة فقط إذا كانت الحركة ملحوظة
+ومرتبطة بسبب اقتصادي مهم (وليس حدث سياسي أو حرب).
 
 
 ========================
@@ -339,99 +270,67 @@ SKIP.
 ========================
 
 انشر أخبار الشركات الأمريكية إذا تضمنت معلومة مهمة فعلية مثل:
+نتائج أرباح، إيرادات، تجاوز/إخفاق التوقعات، رفع/خفض التوجيهات،
+صفقة كبيرة، اندماج، استحواذ، تقسيم سهم، منتج جديد رئيسي،
+قرار تنظيمي مهم، مشكلة تشغيلية كبيرة.
 
-- نتائج الأرباح.
-- الإيرادات المهمة.
-- تجاوز أو إخفاق واضح في التوقعات.
-- رفع التوجيهات المستقبلية.
-- خفض التوجيهات المستقبلية.
-- نمو قوي أو تراجع كبير في نشاط رئيسي للشركة.
-- إعلان استثمار أو إنفاق رأسمالي ضخم.
-- صفقة كبيرة.
-- اندماج.
-- استحواذ.
-- تقسيم سهم.
-- منتج أو خدمة رئيسية جديدة.
-- قرار تنظيمي مهم.
-- مشكلة تشغيلية كبيرة قد تؤثر على أعمال الشركة.
-- إعلان جوهري من إدارة الشركة.
-
-لا تنشر الخبر لمجرد وجود اسم شركة كبيرة فيه.
-
-إذا كان الخبر مجرد رأي Jim Cramer أو محلل أو مستثمر:
-SKIP.
+لا تنشر لمجرد وجود اسم شركة كبيرة. SKIP لآراء Jim Cramer أو أي محلل.
 
 
 ========================
-رابعاً: الطاقة والجيوسياسة
+رابعاً: الطاقة (فقط الأحداث الجوهرية جدًا)
 ========================
 
-انشر الأحداث المهمة التي قد تؤثر فعليًا على النفط أو الطاقة
-أو السوق الأمريكي، مثل:
+انشر فقط: قرار جوهري من أوبك، إغلاق مضيق هرمز، تعطيل واسع للإمدادات،
+عقوبات كبيرة تؤثر على صادرات الطاقة، حدث يغيّر تدفقات الطاقة العالمية بشكل جوهري.
 
-- قرار جوهري من أوبك بشأن الإنتاج.
-- إغلاق مضيق هرمز.
-- تعطيل واسع لإمدادات النفط أو الغاز.
-- عقوبات اقتصادية كبيرة تؤثر على صادرات النفط أو الطاقة.
-- حدث يسبب تغيرًا مهمًا في تدفقات الطاقة العالمية.
-- إعلان حرب رسمي كبير.
-- دخول الولايات المتحدة رسميًا في حرب.
-- وقف إطلاق نار كبير يغير توقعات الأسواق.
-
-يمكن نشر خبر مهم عن LNG أو النفط إذا كان يكشف
-تغيرًا كبيرًا في الإمدادات أو الطلب أو طرق الشحن.
-
-أما الحوادث الصغيرة والمتكررة:
-SKIP.
+أي حدث حربي أو سياسي آخر مهما بدا "مرتبطًا بالنفط": SKIP، إلا إذا تحقق أعلاه بوضوح.
 
 
 ========================
 خامساً: صيغة الخبر
 ========================
 
-إذا قررت نشر الخبر:
-
 - اكتب بالعربية فقط.
-- لا تكتب YES.
-- لا تكتب NO.
-- لا تكتب SKIP إلا إذا قررت رفض الخبر.
-- لا تكتب كلمة "الملخص".
-- لا تكتب كلمة "التحليل".
-- لا تذكر المصدر، لأن البرنامج سيضيفه.
+- لا تكتب YES/NO.
+- لا تذكر المصدر.
 - اجعل الخبر مختصرًا وواضحًا.
 - لا تضف معلومات غير موجودة في العنوان.
+- للأخبار الاقتصادية الواضحة التأثير، أضف سطر: 📊 التأثير: ...
 
-إذا كان الخبر عن شركة:
-اكتب الخبر فقط بدون توقع تأثير من عندك.
-
-إذا كان خبرًا اقتصاديًا وكان تأثيره واضحًا جدًا:
-يمكن إضافة سطر واحد فقط:
-
-📊 التأثير: ...
-
-إذا كنت مترددًا هل الخبر يستحق إشعارًا أم لا:
-SKIP.
-
+إذا كنت مترددًا: SKIP.
 
 العنوان الأصلي:
 
 {headline}
 """
-    )
-
-    result = response.output_text.strip()
+        )
+        result = response.output_text.strip()
+    except Exception as e:
+        print("GPT ERROR:", e)
+        return None
 
     cache_set(headline, result)
-
     return result
-    # ==========================================
+
+
+# ==========================================
+# مساعد: توليد ID بديل لو الخبر بلا id
+# ==========================================
+
+def get_safe_id(item, headline):
+    item_id = item.get("id")
+    if item_id:
+        return item_id
+    return hashlib.md5(headline.encode("utf-8")).hexdigest()
+
+
+# ==========================================
 # تشغيل البوت
 # ==========================================
 
 while True:
-
     try:
-
         url = (
             "https://finnhub.io/api/v1/news"
             f"?category=general&token={FINNHUB_API_KEY}"
@@ -442,36 +341,39 @@ while True:
 
         news = response.json()
 
+        # تعديل: حماية من استجابة غير متوقعة (dict بدل list)
+        if not isinstance(news, list):
+            print("Unexpected API response:", news)
+            time.sleep(60)
+            continue
+
         for item in news:
 
-            item_id = item.get("id")
+            headline = item.get("headline", "").strip()
+            if not headline:
+                continue
+
+            item_id = get_safe_id(item, headline)
 
             if item_id in sent:
                 continue
 
-            headline = item.get("headline", "").strip()
-
-            if not headline:
-                continue
-
             text = headline.lower()
 
-
             # ==================================
-            # فلتر أولي للكلمات المهمة
+            # فلتر أولي: منع السياسة/الحروب أولاً
+            # (تعديل: هذا الفلتر الآن يعمل قبل أي شيء آخر)
             # ==================================
 
-            if not any(word in text for word in KEYWORDS):
+            if BLOCKED_PATTERN.search(text):
                 continue
 
-
             # ==================================
-            # منع الأخبار الروتينية والآراء
+            # فلتر الكلمات المفتاحية (whole-word)
             # ==================================
 
-            if any(word in text for word in BLOCKED_PHRASES):
+            if not KEYWORDS_PATTERN.search(text):
                 continue
-
 
             # ==================================
             # تحليل الخبر بواسطة GPT
@@ -482,24 +384,16 @@ while True:
             if not analysis:
                 continue
 
-            if analysis.strip().upper() == "SKIP":
+            if analysis.strip().upper() in ["SKIP", "YES", "NO"]:
                 continue
-
-            # حماية من ظهور YES / NO في القناة
-            if analysis.strip().upper() in ["YES", "NO"]:
-                continue
-
 
             # ==================================
             # منع تكرار نفس الحدث
-            # يتم الفحص بعد قبول GPT للخبر
-            # وقبل إرساله إلى القناة
             # ==================================
 
             if is_duplicate_topic(headline):
                 print("DUPLICATE SKIPPED:", headline)
                 continue
-
 
             # ==================================
             # إرسال الخبر
@@ -519,22 +413,14 @@ https://t.me/ChartMaster_News
 
             send(message)
 
-
-            # ==================================
-            # لا نسجل الخبر إلا بعد نجاح الإرسال
-            # ==================================
-
             sent.add(item_id)
             save(sent)
 
             remember_topic(headline)
-                    # ننتظر دقيقة قبل فحص الأخبار من جديد
-        time.sleep(60)
 
+        time.sleep(60)
 
     except Exception:
         import traceback
         traceback.print_exc()
-
-        # في حال حدوث خطأ ننتظر دقيقة ثم نحاول من جديد
         time.sleep(60)

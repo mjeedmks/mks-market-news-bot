@@ -406,12 +406,14 @@ def get_holidays_this_week(monday_date):
 
 def format_weekly_message(events, holidays, week_start, week_end):
     lines = []
+
     lines.append("📅 التقويم الاقتصادي الأمريكي")
     lines.append(
         f"الأسبوع من {week_start.strftime('%Y-%m-%d')} "
         f"إلى {week_end.strftime('%Y-%m-%d')}"
     )
     lines.append("")
+
     if holidays:
         lines.append("🔴 تنبيه: عطلة رسمية في السوق الأمريكي")
         for date, reason in holidays:
@@ -421,18 +423,35 @@ def format_weekly_message(events, holidays, week_start, week_end):
                 f"{reason} — السوق مغلق 🚫"
             )
         lines.append("")
-    if events:
-        lines.append("📊 أهم الأحداث الاقتصادية:")
-        for e in events:
-            date_obj = datetime.datetime.strptime(e["date"], "%Y-%m-%d")
-            day_name = ARABIC_DAYS.get(date_obj.strftime("%A"), "")
-            lines.append(f"- {day_name} {e['date']} | {e['event']}")
-    else:
-        lines.append("لا توجد بيانات اقتصادية مسجلة لهذا الأسبوع.")
+
+    lines.append("📊 أهم الأحداث الاقتصادية هذا الأسبوع:")
     lines.append("")
+
+    events_by_date = {}
+    for e in events:
+        events_by_date.setdefault(e["date"], []).append(e["event"])
+
+    for i in range(5):
+        day_date = week_start + datetime.timedelta(days=i)
+        date_str = day_date.strftime("%Y-%m-%d")
+        day_name = ARABIC_DAYS.get(day_date.strftime("%A"), "")
+
+        day_events = events_by_date.get(date_str, [])
+
+        lines.append(f"🔹 يوم {day_name} ({date_str}):")
+
+        if day_events:
+            for ev in day_events:
+                lines.append(f"   - {ev}")
+        else:
+            lines.append("   - لا توجد بيانات اقتصادية مهمة")
+
+        lines.append("")
+
     lines.append("━━━━━━━━━━━━━━")
     lines.append("📊 Chart News US | أخبار السوق الامريكي")
     lines.append("https://t.me/ChartMaster_News")
+
     return "\n".join(lines)
 
 
@@ -450,6 +469,7 @@ def set_last_weekly_sent(date_str):
 
 
 while True:
+
     try:
         url = (
             "https://finnhub.io/api/v1/news"
@@ -508,34 +528,38 @@ https://t.me/ChartMaster_News
             save(sent)
             remember_topic(headline)
 
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
+    try:
         today = datetime.date.today()
         today_str = today.strftime("%Y-%m-%d")
 
         force_test = os.getenv("FORCE_WEEKLY_TEST") == "1"
 
-        if (today.weekday() == 6 or force_test) and (force_test or get_last_weekly_sent() != today_str):
-            try:
-                week_start = today + datetime.timedelta(days=1)
-                week_end = week_start + datetime.timedelta(days=6)
+        should_send = (
+            (today.weekday() == 6 or force_test)
+            and (force_test or get_last_weekly_sent() != today_str)
+        )
 
-                events = get_weekly_economic_calendar_fred(week_start, week_end)
-                holidays = get_holidays_this_week(week_start)
+        if should_send:
+            week_start = today + datetime.timedelta(days=1)
+            week_end = week_start + datetime.timedelta(days=6)
 
-                weekly_message = format_weekly_message(
-                    events, holidays, week_start, week_end
-                )
+            events = get_weekly_economic_calendar_fred(week_start, week_end)
+            holidays = get_holidays_this_week(week_start)
 
-                send(weekly_message)
-                set_last_weekly_sent(today_str)
+            weekly_message = format_weekly_message(
+                events, holidays, week_start, week_end
+            )
 
-                print("Weekly calendar sent successfully.")
+            send(weekly_message)
+            set_last_weekly_sent(today_str)
 
-            except Exception as e:
-                print("Weekly summary error:", e)
+            print("Weekly calendar sent successfully.")
 
-        time.sleep(60)
+    except Exception as e:
+        print("Weekly summary error:", e)
 
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        time.sleep(60)
+    time.sleep(60)

@@ -617,25 +617,24 @@ https://t.me/ChartMaster_News
         # التقويم الاقتصادي الأسبوعي (كل أحد)
         # ==================================
 
-        today = datetime.date.today()
+               today = datetime.date.today()
         today_str = today.strftime("%Y-%m-%d")
 
-                force_test = os.getenv("FORCE_WEEKLY_TEST") == "1"
+        force_test = os.getenv("FORCE_WEEKLY_TEST") == "1"
 
         if (today.weekday() == 6 or force_test) and (force_test or get_last_weekly_sent() != today_str):
-                week_start = today + datetime.timedelta(days=1)
-                week_end = week_start + datetime.timedelta(days=6)
+            week_start = today + datetime.timedelta(days=1)
+            week_end = week_start + datetime.timedelta(days=6)
 
-                events = get_weekly_economic_calendar_fred(week_start, week_end)
-                holidays = get_holidays_this_week(week_start)
+            events = get_weekly_economic_calendar_fred(week_start, week_end)
+            holidays = get_holidays_this_week(week_start)
 
-                weekly_message = format_weekly_message(
-                    events, holidays, week_start, week_end
-                )
+            weekly_message = format_weekly_message(
+                events, holidays, week_start, week_end
+            )
 
-                send(weekly_message)
-                set_last_weekly_sent(today_str)
-
+            send(weekly_message)
+            set_last_weekly_sent(today_str)
                 print("Weekly calendar sent successfully.")
 
             except Exception as e:

@@ -620,8 +620,9 @@ https://t.me/ChartMaster_News
         today = datetime.date.today()
         today_str = today.strftime("%Y-%m-%d")
 
-        if today.weekday() == 6 and get_last_weekly_sent() != today_str:
-            try:
+                force_test = os.getenv("FORCE_WEEKLY_TEST") == "1"
+
+        if (today.weekday() == 6 or force_test) and (force_test or get_last_weekly_sent() != today_str):
                 week_start = today + datetime.timedelta(days=1)
                 week_end = week_start + datetime.timedelta(days=6)
 

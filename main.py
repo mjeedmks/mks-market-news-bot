@@ -8,10 +8,6 @@ from cache import get, set as cache_set
 from sent import load, save
 from openai import OpenAI
 
-# ==========================================
-# المفاتيح والمتغيرات
-# ==========================================
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
@@ -26,56 +22,33 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 sent = load()
 
-
-# ==========================================
-# الأخبار التي نريد وصولها إلى GPT
-# ==========================================
-
 KEYWORDS = [
     "fed", "federal reserve", "fomc", "powell",
     "interest rate", "rate cut", "rate hike",
     "inflation", "cpi", "ppi", "pce", "gdp", "nfp",
     "payroll", "jobs report", "unemployment rate",
-
     "dollar", "gold", "treasury", "treasuries",
     "bond", "bonds", "yield", "yields",
-
     "tariff", "tariffs", "sanction", "sanctions",
-
     "opec", "opec+", "strait of hormuz", "crude oil",
     "oil price", "oil prices", "lng",
-
     "nasdaq", "nyse", "cboe", "s&p 500", "dow jones",
-
     "earnings", "quarterly revenue", "guidance",
     "dividend", "stock split", "merger", "acquisition",
     "takeover", "ipo",
-
     "artificial intelligence", "openai", "nvidia",
     "microsoft", "apple", "amazon", "meta platforms",
     "tesla", "amd", "broadcom", "alphabet", "netflix"
 ]
 
-
-# ==========================================
-# أخبار نرفضها قبل إرسالها إلى GPT
-# ==========================================
-
 BLOCKED_PHRASES = [
-    # روتين إعلامي
     "market update", "morning news", "morning bid",
     "stocks:", "forex", "currencies",
     "commodity", "commodities",
-
-    # آراء وتحليلات
     "analyst says", "analysts say", "analyst expects",
     "opinion", "commentary", "preview",
     "jim cramer", "cramer says", "cramer's",
-
-    # عملات أجنبية غير مهمة
     "rupee", "rand", "peso", "baht", "lira",
-
-    # سياسة وحروب ومصطلحات عسكرية
     "election", "elections", "president of", "prime minister",
     "parliament", "congress hearing", "senate vote",
     "military", "missile", "missiles", "airstrike",
@@ -92,10 +65,6 @@ BLOCKED_PHRASES = [
 ]
 
 
-# ==========================================
-# مطابقة الكلمات المفتاحية بدقة (Whole Word)
-# ==========================================
-
 def build_pattern(words):
     escaped = [re.escape(w) for w in words]
     pattern = r"(?:{})".format("|".join(escaped))
@@ -105,13 +74,7 @@ def build_pattern(words):
 KEYWORDS_PATTERN = build_pattern(KEYWORDS)
 BLOCKED_PATTERN = build_pattern(BLOCKED_PHRASES)
 
-
-# ==========================================
-# ذاكرة مؤقتة لمنع تكرار نفس الحدث
-# ==========================================
-
 recent_topics = []
-
 TOPIC_MEMORY_SECONDS = 6 * 60 * 60
 MAX_RECENT_TOPICS = 300
 
@@ -120,47 +83,37 @@ def normalize_headline(text):
     text = text.lower()
     text = re.sub(r"https?://\S+", " ", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
-
     stop_words = {
         "the", "a", "an", "and", "or", "of", "to", "in",
         "on", "for", "with", "as", "at", "by", "from",
         "after", "amid", "says", "say", "said", "new",
         "update", "report", "reports"
     }
-
     words = [
         word for word in text.split()
         if word not in stop_words and len(word) > 2
     ]
-
     return set(words)
 
 
 def is_duplicate_topic(headline):
     global recent_topics
     now = time.time()
-
     recent_topics = [
         item for item in recent_topics
         if now - item["time"] < TOPIC_MEMORY_SECONDS
     ]
-
     current_words = normalize_headline(headline)
-
     if len(current_words) < 3:
         return False
-
     for item in recent_topics:
         old_words = item["words"]
         if not old_words:
             continue
-
         common = current_words & old_words
         similarity = len(common) / min(len(current_words), len(old_words))
-
         if similarity >= 0.65:
             return True
-
     return False
 
 
@@ -170,18 +123,12 @@ def remember_topic(headline):
         "time": time.time(),
         "words": normalize_headline(headline)
     })
-
     if len(recent_topics) > MAX_RECENT_TOPICS:
         recent_topics = recent_topics[-MAX_RECENT_TOPICS:]
 
 
-# ==========================================
-# إرسال الرسالة إلى تيليجرام
-# ==========================================
-
 def send(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
     response = requests.post(
         url,
         data={
@@ -193,10 +140,6 @@ def send(msg):
     )
     response.raise_for_status()
 
-
-# ==========================================
-# تحليل الخبر عبر GPT
-# ==========================================
 
 def analyze_news(headline):
     cached = get(headline)
@@ -326,20 +269,12 @@ def analyze_news(headline):
     return result
 
 
-# ==========================================
-# مساعد: توليد ID بديل لو الخبر بلا id
-# ==========================================
-
 def get_safe_id(item, headline):
     item_id = item.get("id")
     if item_id:
         return item_id
     return hashlib.md5(headline.encode("utf-8")).hexdigest()
 
-
-# ==========================================
-# التقويم الاقتصادي الأسبوعي (FRED API)
-# ==========================================
 
 FOMC_MEETINGS_2025 = [
     "2025-01-29",
@@ -392,15 +327,12 @@ def find_release_id(name):
         "api_key": FRED_API_KEY,
         "file_type": "json"
     }
-
     response = requests.get(url, params=params, timeout=15)
     response.raise_for_status()
     data = response.json()
-
     for release in data.get("releases", []):
         if name.lower() == release.get("name", "").lower():
             return release["id"]
-
     return None
 
 
@@ -408,18 +340,16 @@ def resolve_release_ids():
     for eng_name in TARGET_RELEASES_NAMES:
         if eng_name in RELEASE_ID_CACHE:
             continue
-
         try:
             release_id = find_release_id(eng_name)
         except Exception as e:
             print(f"FRED resolve error for {eng_name}:", e)
             continue
-
         if release_id:
             RELEASE_ID_CACHE[eng_name] = release_id
-            print(f"✅ تم ربط: {eng_name} -> ID {release_id}")
+            print(f"Linked: {eng_name} -> ID {release_id}")
         else:
-            print(f"⚠️ لم يتم العثور على Release ID لـ: {eng_name}")
+            print(f"Not found release id for: {eng_name}")
 
 
 def get_release_dates(release_id, start_date, end_date):
@@ -432,23 +362,18 @@ def get_release_dates(release_id, start_date, end_date):
         "realtime_start": start_date,
         "realtime_end": end_date
     }
-
     response = requests.get(url, params=params, timeout=15)
     response.raise_for_status()
     data = response.json()
-
     return [d["date"] for d in data.get("release_dates", [])]
 
 
 def get_weekly_economic_calendar_fred(week_start, week_end):
     results = []
-
     if not RELEASE_ID_CACHE:
         resolve_release_ids()
-
     start_str = week_start.strftime("%Y-%m-%d")
     end_str = week_end.strftime("%Y-%m-%d")
-
     for eng_name, release_id in RELEASE_ID_CACHE.items():
         try:
             dates = get_release_dates(release_id, start_str, end_str)
@@ -459,41 +384,34 @@ def get_weekly_economic_calendar_fred(week_start, week_end):
                 })
         except Exception as e:
             print(f"FRED error for {eng_name}:", e)
-
     for date_str in FOMC_MEETINGS_2025:
         if start_str <= date_str <= end_str:
             results.append({
                 "date": date_str,
                 "event": "قرار الفيدرالي بشأن الفائدة (FOMC)"
             })
-
     results.sort(key=lambda x: x["date"])
     return results
 
 
 def get_holidays_this_week(monday_date):
     holidays_found = []
-
     for i in range(7):
         d = monday_date + datetime.timedelta(days=i)
         date_str = d.strftime("%Y-%m-%d")
-
         if date_str in US_MARKET_HOLIDAYS_2025:
             holidays_found.append((d, US_MARKET_HOLIDAYS_2025[date_str]))
-
     return holidays_found
 
 
 def format_weekly_message(events, holidays, week_start, week_end):
     lines = []
-
     lines.append("📅 التقويم الاقتصادي الأمريكي")
     lines.append(
         f"الأسبوع من {week_start.strftime('%Y-%m-%d')} "
         f"إلى {week_end.strftime('%Y-%m-%d')}"
     )
     lines.append("")
-
     if holidays:
         lines.append("🔴 تنبيه: عطلة رسمية في السوق الأمريكي")
         for date, reason in holidays:
@@ -503,7 +421,6 @@ def format_weekly_message(events, holidays, week_start, week_end):
                 f"{reason} — السوق مغلق 🚫"
             )
         lines.append("")
-
     if events:
         lines.append("📊 أهم الأحداث الاقتصادية:")
         for e in events:
@@ -512,12 +429,10 @@ def format_weekly_message(events, holidays, week_start, week_end):
             lines.append(f"- {day_name} {e['date']} | {e['event']}")
     else:
         lines.append("لا توجد بيانات اقتصادية مسجلة لهذا الأسبوع.")
-
     lines.append("")
     lines.append("━━━━━━━━━━━━━━")
     lines.append("📊 Chart News US | أخبار السوق الامريكي")
     lines.append("https://t.me/ChartMaster_News")
-
     return "\n".join(lines)
 
 
@@ -534,24 +449,14 @@ def set_last_weekly_sent(date_str):
         f.write(date_str)
 
 
-# ==========================================
-# تشغيل البوت
-# ==========================================
-
 while True:
     try:
-        # ==================================
-        # جلب الأخبار من Finnhub
-        # ==================================
-
         url = (
             "https://finnhub.io/api/v1/news"
             f"?category=general&token={FINNHUB_API_KEY}"
         )
-
         response = requests.get(url, timeout=15)
         response.raise_for_status()
-
         news = response.json()
 
         if not isinstance(news, list):
@@ -559,41 +464,33 @@ while True:
             news = []
 
         for item in news:
-
             headline = item.get("headline", "").strip()
             if not headline:
                 continue
 
             item_id = get_safe_id(item, headline)
-
             if item_id in sent:
                 continue
 
             text = headline.lower()
 
-            # فلتر: منع السياسة والحروب أولاً
             if BLOCKED_PATTERN.search(text):
                 continue
 
-            # فلتر: يجب أن يحتوي على كلمة مفتاحية
             if not KEYWORDS_PATTERN.search(text):
                 continue
 
-            # تحليل الخبر بواسطة GPT
             analysis = analyze_news(headline)
-
             if not analysis:
                 continue
 
             if analysis.strip().upper() in ["SKIP", "YES", "NO"]:
                 continue
 
-            # منع تكرار نفس الحدث
             if is_duplicate_topic(headline):
                 print("DUPLICATE SKIPPED:", headline)
                 continue
 
-            # إرسال الخبر
             message = f"""-
 
 
@@ -607,34 +504,30 @@ https://t.me/ChartMaster_News
 """
 
             send(message)
-
             sent.add(item_id)
             save(sent)
-
             remember_topic(headline)
 
-        # ==================================
-        # التقويم الاقتصادي الأسبوعي (كل أحد)
-        # ==================================
-
-               today = datetime.date.today()
+        today = datetime.date.today()
         today_str = today.strftime("%Y-%m-%d")
 
         force_test = os.getenv("FORCE_WEEKLY_TEST") == "1"
 
         if (today.weekday() == 6 or force_test) and (force_test or get_last_weekly_sent() != today_str):
-            week_start = today + datetime.timedelta(days=1)
-            week_end = week_start + datetime.timedelta(days=6)
+            try:
+                week_start = today + datetime.timedelta(days=1)
+                week_end = week_start + datetime.timedelta(days=6)
 
-            events = get_weekly_economic_calendar_fred(week_start, week_end)
-            holidays = get_holidays_this_week(week_start)
+                events = get_weekly_economic_calendar_fred(week_start, week_end)
+                holidays = get_holidays_this_week(week_start)
 
-            weekly_message = format_weekly_message(
-                events, holidays, week_start, week_end
-            )
+                weekly_message = format_weekly_message(
+                    events, holidays, week_start, week_end
+                )
 
-            send(weekly_message)
-            set_last_weekly_sent(today_str)
+                send(weekly_message)
+                set_last_weekly_sent(today_str)
+
                 print("Weekly calendar sent successfully.")
 
             except Exception as e:

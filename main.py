@@ -2,18 +2,25 @@ import os
 import time
 import re
 import hashlib
+import datetime
 import requests
 from cache import get, set as cache_set
 from sent import load, save
 from openai import OpenAI
 
+# ==========================================
+# المفاتيح والمتغيرات
+# ==========================================
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+FRED_API_KEY = os.getenv("FRED_API_KEY")
 
 print("OPENAI =", OPENAI_API_KEY[:12] if OPENAI_API_KEY else "None")
 print("FINNHUB =", FINNHUB_API_KEY[:8] if FINNHUB_API_KEY else "None")
+print("FRED =", FRED_API_KEY[:8] if FRED_API_KEY else "None")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -52,7 +59,6 @@ KEYWORDS = [
 
 # ==========================================
 # أخبار نرفضها قبل إرسالها إلى GPT
-# (تعديل: توسيع شامل ليشمل السياسة والحروب)
 # ==========================================
 
 BLOCKED_PHRASES = [
@@ -69,7 +75,7 @@ BLOCKED_PHRASES = [
     # عملات أجنبية غير مهمة
     "rupee", "rand", "peso", "baht", "lira",
 
-    # === إضافة: سياسة وحروب ومصطلحات عسكرية ===
+    # سياسة وحروب ومصطلحات عسكرية
     "election", "elections", "president of", "prime minister",
     "parliament", "congress hearing", "senate vote",
     "military", "missile", "missiles", "airstrike",
@@ -77,7 +83,7 @@ BLOCKED_PHRASES = [
     "gaza", "hamas", "houthi", "houthis", "yemen",
     "syria", "hezbollah", "west bank", "protest",
     "protests", "riot", "coup", "assassination",
-    "prime minister", "royal family", "king of",
+    "royal family", "king of",
     "diplomat", "embassy", "united nations",
     "human rights", "refugee", "refugees",
     "immigration policy", "border wall",
@@ -88,7 +94,6 @@ BLOCKED_PHRASES = [
 
 # ==========================================
 # مطابقة الكلمات المفتاحية بدقة (Whole Word)
-# تعديل: استخدام regex بدل substring matching
 # ==========================================
 
 def build_pattern(words):
@@ -190,7 +195,7 @@ def send(msg):
 
 
 # ==========================================
-# تحليل الخبر
+# تحليل الخبر عبر GPT
 # ==========================================
 
 def analyze_news(headline):
@@ -220,12 +225,8 @@ def analyze_news(headline):
 اكتب SKIP للأخبار التالية:
 
 - أي خبر سياسي أو عسكري أو حربي، بأي شكل، إلا إذا كان له تأثير اقتصادي مباشر وواضح على السوق الأمريكي (مثل إغلاق مضيق هرمز أو عقوبات نفطية كبيرة).
-- عقوبات فردية على شركات صغيرة، شبكات دعم، أفراد، أو كيانات محدودة
-  (مثل عقوبات على شركة طيران أو شخص أو شبكة تهريب):
-  SKIP، لأنها لا تؤثر على السوق الأمريكي.
-- انشر العقوبات فقط إذا كانت واسعة النطاق وتؤثر على قطاع كامل
-  مثل: عقوبات نفطية شاملة على دولة، عقوبات تجارية كبيرة،
-  أو عقوبات تشمل بنوك مركزية أو صادرات رئيسية.
+- عقوبات فردية على شركات صغيرة، شبكات دعم، أفراد، أو كيانات محدودة (مثل عقوبات على شركة طيران أو شخص أو شبكة تهريب): SKIP، لأنها لا تؤثر على السوق الأمريكي.
+- انشر العقوبات فقط إذا كانت واسعة النطاق وتؤثر على قطاع كامل، مثل: عقوبات نفطية شاملة على دولة، عقوبات تجارية كبيرة، أو عقوبات تشمل بنوك مركزية أو صادرات رئيسية.
 - التصريحات السياسية العادية.
 - التهديدات السياسية المتكررة.
 - أخبار الحروب اليومية الصغيرة.
@@ -265,7 +266,7 @@ SKIP.
 - بيانات الوظائف الأمريكية المهمة.
 - التضخم الأمريكي.
 - الرسوم الجمركية الأمريكية المهمة.
-- العقوبات الاقتصادية الأمريكية المهمة.
+- العقوبات الاقتصادية الأمريكية الكبيرة (وليس الفردية).
 
 أخبار الدولار والذهب والسندات مهمة فقط إذا كانت الحركة ملحوظة
 ومرتبطة بسبب اقتصادي مهم (وليس حدث سياسي أو حرب).
@@ -275,158 +276,4 @@ SKIP.
 ثالثاً: أخبار الشركات
 ========================
 
-انشر أخبار الشركات الأمريكية إذا تضمنت معلومة مهمة فعلية مثل:
-نتائج أرباح، إيرادات، تجاوز/إخفاق التوقعات، رفع/خفض التوجيهات،
-صفقة كبيرة، اندماج، استحواذ، تقسيم سهم، منتج جديد رئيسي،
-قرار تنظيمي مهم، مشكلة تشغيلية كبيرة.
-
-لا تنشر لمجرد وجود اسم شركة كبيرة. SKIP لآراء Jim Cramer أو أي محلل.
-
-
-========================
-رابعاً: الطاقة (فقط الأحداث الجوهرية جدًا)
-========================
-
-انشر فقط: قرار جوهري من أوبك، إغلاق مضيق هرمز، تعطيل واسع للإمدادات،
-عقوبات كبيرة تؤثر على صادرات الطاقة، حدث يغيّر تدفقات الطاقة العالمية بشكل جوهري.
-
-أي حدث حربي أو سياسي آخر مهما بدا "مرتبطًا بالنفط": SKIP، إلا إذا تحقق أعلاه بوضوح.
-
-
-========================
-خامساً: صيغة الخبر
-========================
-
-- اكتب بالعربية فقط.
-- لا تكتب YES/NO.
-- لا تذكر المصدر.
-- اجعل الخبر مختصرًا وواضحًا.
-- لا تضف معلومات غير موجودة في العنوان.
-- لا تضف أي تحليل أو تعليق أو استنتاج من عندك، فقط الخبر كما هو.
-
-إذا كنت مترددًا: SKIP.
-
-العنوان الأصلي:
-
-{headline}
-"""
-        )
-        result = response.output_text.strip()
-    except Exception as e:
-        print("GPT ERROR:", e)
-        return None
-
-    cache_set(headline, result)
-    return result
-
-
-# ==========================================
-# مساعد: توليد ID بديل لو الخبر بلا id
-# ==========================================
-
-def get_safe_id(item, headline):
-    item_id = item.get("id")
-    if item_id:
-        return item_id
-    return hashlib.md5(headline.encode("utf-8")).hexdigest()
-
-
-# ==========================================
-# تشغيل البوت
-# ==========================================
-
-while True:
-    try:
-        url = (
-            "https://finnhub.io/api/v1/news"
-            f"?category=general&token={FINNHUB_API_KEY}"
-        )
-
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-
-        news = response.json()
-
-        # تعديل: حماية من استجابة غير متوقعة (dict بدل list)
-        if not isinstance(news, list):
-            print("Unexpected API response:", news)
-            time.sleep(60)
-            continue
-
-        for item in news:
-
-            headline = item.get("headline", "").strip()
-            if not headline:
-                continue
-
-            item_id = get_safe_id(item, headline)
-
-            if item_id in sent:
-                continue
-
-            text = headline.lower()
-
-            # ==================================
-            # فلتر أولي: منع السياسة/الحروب أولاً
-            # (تعديل: هذا الفلتر الآن يعمل قبل أي شيء آخر)
-            # ==================================
-
-            if BLOCKED_PATTERN.search(text):
-                continue
-
-            # ==================================
-            # فلتر الكلمات المفتاحية (whole-word)
-            # ==================================
-
-            if not KEYWORDS_PATTERN.search(text):
-                continue
-
-            # ==================================
-            # تحليل الخبر بواسطة GPT
-            # ==================================
-
-            analysis = analyze_news(headline)
-
-            if not analysis:
-                continue
-
-            if analysis.strip().upper() in ["SKIP", "YES", "NO"]:
-                continue
-
-            # ==================================
-            # منع تكرار نفس الحدث
-            # ==================================
-
-            if is_duplicate_topic(headline):
-                print("DUPLICATE SKIPPED:", headline)
-                continue
-
-            # ==================================
-            # إرسال الخبر
-            # ==================================
-
-            message = f"""-
-
-
-{analysis}
-
-📰 المصدر: {item.get('source', 'غير معروف')}
-
-━━━━━━━━━━━━━━
-📊 Chart News US | أخبار السوق الامريكي
-https://t.me/ChartMaster_News
-"""
-
-            send(message)
-
-            sent.add(item_id)
-            save(sent)
-
-            remember_topic(headline)
-
-        time.sleep(60)
-
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        time.sleep(60)
+انشر أخبار الشركات الأمريكية إذا

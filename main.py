@@ -13,6 +13,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 FRED_API_KEY = os.getenv("FRED_API_KEY")
+FMP_API_KEY = os.getenv("FMP_API_KEY")
 
 print("OPENAI =", OPENAI_API_KEY[:12] if OPENAI_API_KEY else "None")
 print("FINNHUB =", FINNHUB_API_KEY[:8] if FINNHUB_API_KEY else "None")

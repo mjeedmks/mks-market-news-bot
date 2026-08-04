@@ -480,7 +480,7 @@ def set_last_weekly_sent(date_str):
 
 # ============ TEST BLOCK - مؤقت للاختبار فقط ============
 if os.getenv("TEST_FMP_CALENDAR") == "1":
-    test_url = "https://financialmodelingprep.com/api/v3/economic_calendar"
+    test_url = "https://financialmodelingprep.com/stable/economic-calendar"
     test_params = {
         "from": datetime.date.today().strftime("%Y-%m-%d"),
         "to": (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d"),

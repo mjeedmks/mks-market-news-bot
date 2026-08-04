@@ -321,15 +321,27 @@ TARGET_RELEASES_NAMES = {
 RELEASE_ID_CACHE = {}
 
 
+def fetch_with_retry(url, params, max_retries=3, timeout=25):
+    last_exception = None
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            last_exception = e
+            print(f"FRED attempt {attempt + 1} failed: {e}")
+            time.sleep(3 * (attempt + 1))
+    raise last_exception
+
+
 def find_release_id(name):
     url = "https://api.stlouisfed.org/fred/releases"
     params = {
         "api_key": FRED_API_KEY,
         "file_type": "json"
     }
-    response = requests.get(url, params=params, timeout=15)
-    response.raise_for_status()
-    data = response.json()
+    data = fetch_with_retry(url, params)
     for release in data.get("releases", []):
         if name.lower() == release.get("name", "").lower():
             return release["id"]
@@ -362,9 +374,7 @@ def get_release_dates(release_id, start_date, end_date):
         "realtime_start": start_date,
         "realtime_end": end_date
     }
-    response = requests.get(url, params=params, timeout=15)
-    response.raise_for_status()
-    data = response.json()
+    data = fetch_with_retry(url, params)
     return [d["date"] for d in data.get("release_dates", [])]
 
 
@@ -467,6 +477,18 @@ def set_last_weekly_sent(date_str):
     with open("weekly_sent.txt", "w") as f:
         f.write(date_str)
 
+# ============ TEST BLOCK - مؤقت للاختبار فقط ============
+if os.getenv("TEST_FMP_CALENDAR") == "1":
+    test_url = "https://financialmodelingprep.com/api/v3/economic_calendar"
+    test_params = {
+        "from": datetime.date.today().strftime("%Y-%m-%d"),
+        "to": (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d"),
+        "apikey": FMP_API_KEY
+    }
+    test_response = requests.get(test_url, params=test_params, timeout=20)
+    print("FMP STATUS:", test_response.status_code)
+    print("FMP RAW DATA:", test_response.text[:3000])
+# ==========================================================
 
 while True:
 

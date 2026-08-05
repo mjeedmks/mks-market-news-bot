@@ -478,18 +478,38 @@ def set_last_weekly_sent(date_str):
     with open("weekly_sent.txt", "w") as f:
         f.write(date_str)
 
-# ============ TEST BLOCK - مؤقت للاختبار فقط ============
-if os.getenv("TEST_FMP_CALENDAR") == "1":
-    test_url = "https://financialmodelingprep.com/stable/economic-calendar"
-    test_params = {
-        "from": datetime.date.today().strftime("%Y-%m-%d"),
-        "to": (datetime.date.today() + datetime.timedelta(days=7)).strftime("%Y-%m-%d"),
-        "apikey": FMP_API_KEY
+
+# ============ TEST BLOCK - اختبار FRED Series ============
+if os.getenv("TEST_FRED_SERIES") == "1":
+    test_series = {
+        "Unemployment Rate": ("UNRATE", "lin"),
+        "Nonfarm Payrolls Change": ("PAYEMS", "chg"),
+        "CPI YoY": ("CPIAUCSL", "pc1"),
+        "Core CPI YoY": ("CPILFESL", "pc1"),
+        "PPI YoY": ("PPIACO", "pc1"),
+        "GDP Growth Rate": ("A191RL1Q225SBEA", "lin"),
+        "PCE YoY": ("PCEPI", "pc1"),
+        "Core PCE YoY": ("PCEPILFE", "pc1"),
     }
-    test_response = requests.get(test_url, params=test_params, timeout=20)
-    print("FMP STATUS:", test_response.status_code)
-    print("FMP RAW DATA:", test_response.text[:3000])
-# ==========================================================
+    for label, (series_id, units) in test_series.items():
+        try:
+            test_url = "https://api.stlouisfed.org/fred/series/observations"
+            test_params = {
+                "series_id": series_id,
+                "units": units,
+                "api_key": FRED_API_KEY,
+                "file_type": "json",
+                "sort_order": "desc",
+                "limit": 3
+            }
+            r = requests.get(test_url, params=test_params, timeout=20)
+            data = r.json()
+            obs = data.get("observations", [])
+            print(f"TEST_FRED [{label}] ({series_id}):", obs)
+        except Exception as e:
+            print(f"TEST_FRED ERROR [{label}]:", e)
+# ==============================================================
+
 
 while True:
 
